@@ -14,9 +14,8 @@ changed favicon can stay stuck for days. `refaver` fixes it in one command.
 brew install icy-house/tap/refaver    # recommended
 
 refaver doctor                        # check Full Disk Access + paths
-# Quit Safari, then:
-refaver reset http://localhost:5173   # soft, non-destructive
-# Relaunch Safari — the current favicon appears.
+refaver reset http://localhost:5173   # soft, non-destructive (Safari can stay open)
+# Reload the tab — the current favicon appears.
 ```
 
 ### Standalone (no Homebrew, no pip)
@@ -36,7 +35,9 @@ python3 refaver-0.1.0.pyz --version
   **System Settings → Privacy & Security → Full Disk Access → enable your terminal**,
   then fully quit and reopen the terminal. (`refaver doctor --open-settings` jumps
   there.)
-- **Safari fully quit** before any reset (the database uses SQLite WAL mode).
+- **Safari may stay open for a soft `reset`** — it's safe to write the database
+  while Safari runs, and the change applies when you reload the affected tab.
+  `--hard`, `gc`, and `nuke` (which delete files) still require Safari to be quit.
 
 ## Commands
 

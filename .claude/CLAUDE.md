@@ -25,8 +25,11 @@ verified background — it is the spec; trust it over assumptions.
 ## Safety invariants (enforced by hook + reviews)
 1. NEVER read/write the user's real `~/Library/Safari/Favicon Cache/` from tests or
    automated runs. Tests use a synthetic fixture db (`make-fixture` skill).
-2. Every db mutation: back up the db first, use `BEGIN EXCLUSIVE`, and refuse to run
-   while Safari is running.
+2. Every db mutation: back up the db first and use `BEGIN EXCLUSIVE`. The Safari-quit
+   requirement is NOT blanket: VERIFIED that the soft reset is safe while Safari runs
+   (WAL + BEGIN EXCLUSIVE; integrity_check ok) and takes effect on a tab reload. Only
+   FILE-deleting ops (`--hard`, `gc`, `nuke`) still require Safari quit (untested with
+   Safari live).
 3. Destructive commands (`--hard`, `nuke`) require explicit confirmation (`--yes` to
    bypass in scripts).
 4. Prefer soft mode. Reach for deletion only when the soft path is proven insufficient.

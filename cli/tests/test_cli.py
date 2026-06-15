@@ -55,3 +55,26 @@ def test_gc_dry_run(favicon_cache: Path, capsys: pytest.CaptureFixture[str]) -> 
     assert rc == 0
     assert "row-orphans" in out
     assert "dry run" in out
+
+
+def test_soft_reset_allowed_while_safari_running(
+    favicon_cache: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Verified safe: soft reset proceeds even when Safari is running.
+    monkeypatch.setattr(safari, "is_safari_running", lambda: True)
+    rc = cli.main(["--cache-dir", str(favicon_cache), "reset", "http://localhost:5173"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Soft reset" in out
+    assert "reload the affected tab" in out
+
+
+def test_hard_reset_blocked_while_safari_running(
+    favicon_cache: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # --hard deletes files, so it still requires Safari to be quit (exit code 3).
+    monkeypatch.setattr(safari, "is_safari_running", lambda: True)
+    rc = cli.main(
+        ["--cache-dir", str(favicon_cache), "reset", "http://localhost:5173", "--hard", "--yes"]
+    )
+    assert rc == 3

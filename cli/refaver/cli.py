@@ -25,12 +25,31 @@ def _resolve_cache(args: argparse.Namespace) -> Path:
     return safari.cache_dir(Path(args.cache_dir) if args.cache_dir else None)
 
 
-def _guard_writable(cache: Path) -> Path:
-    """Shared preflight for mutating commands. Returns the db path."""
+def _guard_access(cache: Path) -> Path:
+    """Preflight for any operation: just verify Full Disk Access. Returns db path."""
     database = safari.db_path(cache)
     safari.check_access(database)  # raises FullDiskAccessError / FileNotFoundError
+    return database
+
+
+def _guard_writable(cache: Path) -> Path:
+    """Preflight for FILE-deleting operations: FDA + Safari must be quit.
+
+    Verified safe to write the db while Safari runs (WAL + BEGIN EXCLUSIVE), so
+    the soft reset does NOT use this. Deleting favicon files out from under a
+    running Safari is untested, so --hard / gc / nuke still require a quit.
+    """
+    database = _guard_access(cache)
     safari.ensure_safari_quit()  # raises SafariRunningError
     return database
+
+
+def _apply_hint() -> None:
+    """Tell the user how the change becomes visible."""
+    if safari.is_safari_running():
+        print("Safari is running — reload the affected tab (or restart Safari) to see it.")
+    else:
+        print("Relaunch Safari and load the site — the current favicon should appear.")
 
 
 def _confirm(prompt: str, assume_yes: bool) -> bool:
@@ -48,7 +67,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"cache dir : {cache}")
     print(f"db        : {database} ({'exists' if database.exists() else 'MISSING'})")
     print(f"favicons/ : {safari.favicons_dir(cache)}")
-    running = "RUNNING (quit before writes)" if safari.is_safari_running() else "not running"
+    running = (
+        "running (quit only for --hard/gc/nuke)" if safari.is_safari_running() else "not running"
+    )
     print(f"Safari    : {running}")
     try:
         safari.check_access(database)
@@ -67,7 +88,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def cmd_reset(args: argparse.Namespace) -> int:
     cache = _resolve_cache(args)
-    database = _guard_writable(cache)
+    # Soft reset is safe while Safari runs; --hard deletes files, so it requires a quit.
+    database = _guard_writable(cache) if args.hard else _guard_access(cache)
 
     affected = db.preview(database, args.url)
     if not affected:
@@ -94,7 +116,7 @@ def cmd_reset(args: argparse.Namespace) -> int:
             f"Soft reset: cleared {sres.rejected_cleared} blocklist row(s), "
             f"expired {sres.icons_expired} icon(s)."
         )
-    print("Relaunch Safari and load the site — the current favicon should appear.")
+    _apply_hint()
     return 0
 
 

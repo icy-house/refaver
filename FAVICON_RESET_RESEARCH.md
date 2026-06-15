@@ -349,6 +349,20 @@ the default soft path.
 
 RESEARCH COMPLETE. Ready to port `experiments/*.sh` into a Python `refaver` CLI.
 
+## Is quitting Safari necessary? — TESTED (2026-06-15)
+Ran the soft-reset SQL against the REAL db WHILE Safari was running
+(`experiments/test_safari_running.sh`, mirrors the tool: BEGIN EXCLUSIVE +
+busy_timeout=5000):
+- Write SUCCEEDED (`write-ok`), `PRAGMA integrity_check` = `ok` → no lock, no
+  corruption. SQLite WAL + exclusive txn handles concurrent access as designed.
+- Reloading the tab (without quitting Safari) re-fetched the favicons → the change
+  takes effect live.
+
+⇒ **Quitting Safari is NOT necessary for the soft reset** — neither for safety nor
+effectiveness. The tool now relaxes the guard: `reset` (soft) runs with Safari open
+and prints "reload the tab to see it". FILE-deleting ops (`--hard`, `gc`, `nuke`)
+were NOT tested with Safari live, so they conservatively still require a quit.
+
 ## FDA is MANDATORY — verified (2026-06-14)
 Tested db access from a process WITHOUT Full Disk Access (Claude.app shell):
 - `ls` the folder → `Operation not permitted`
