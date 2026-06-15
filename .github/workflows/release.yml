@@ -15,11 +15,26 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # The git tag is the single source of truth for the version. Stamp it into
+      # the package so all artifacts (sdist/wheel/.pyz) are named to match.
+      - name: Stamp version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python - "$VERSION" <<'PY'
+          import pathlib, re, sys
+          v = sys.argv[1]
+          pp = pathlib.Path("pyproject.toml")
+          pp.write_text(re.sub(r'(?m)^version = ".*"', f'version = "{v}"', pp.read_text()))
+          init = pathlib.Path("refaver/__init__.py")
+          init.write_text(re.sub(r'__version__ = ".*"', f'__version__ = "{v}"', init.read_text()))
+          print("stamped version", v)
+          PY
 
       - name: Build sdist + wheel
         run: |
@@ -40,9 +55,23 @@ jobs:
     needs: release-cli
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4   # this repo, for the updater script
+      - name: Check for tap token
+        id: gate
+        env:
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN not set — skipping automatic tap bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Compute version + sha256 from the released .pyz
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v5   # this repo, for the updater script
+
+      - if: steps.gate.outputs.skip != 'true'
+        name: Compute version + sha256 from the released .pyz
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           curl -fsSL -o refaver.pyz \
@@ -50,17 +79,20 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "SHA=$(sha256sum refaver.pyz | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
-      - name: Checkout the tap repo
-        uses: actions/checkout@v4
+      - if: steps.gate.outputs.skip != 'true'
+        name: Checkout the tap repo
+        uses: actions/checkout@v5
         with:
           repository: icy-house/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}   # PAT with write access to the tap
           path: tap
 
-      - name: Update the formula (version + url + sha256)
+      - if: steps.gate.outputs.skip != 'true'
+        name: Update the formula (version + url + sha256)
         run: ./packaging/update-tap-formula.sh "$VERSION" "$SHA" tap/Formula/refaver.rb
 
-      - name: Commit + push the tap
+      - if: steps.gate.outputs.skip != 'true'
+        name: Commit + push the tap
         run: |
           cd tap
           git config user.name "github-actions[bot]"
@@ -76,7 +108,7 @@ jobs:
   # release-app:
   #   runs-on: macos-latest
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
   #     - name: Import Developer ID cert
   #       env:
   #         MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}        # base64 .p12
