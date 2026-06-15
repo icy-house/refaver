@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+
+# refaver / Safari favicon db backups (never commit real cache data)
+*.bak
+*.bak-*
+favicons.db
+favicons.db-*
+favicon_dump/
+
+# Swift / Xcode (Phase 2)
+app/.build/
+app/.swiftpm/
+*.xcuserstate
+DerivedData/
+
+# Secrets / signing material (never commit)
+*.p12
+*.cer
+*.provisionprofile
+.env

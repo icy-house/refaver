@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "refaver"
+version = "0.1.0"
+description = "Reset Safari's cached favicons for a site — no Terminal gymnastics."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["safari", "favicon", "macos", "cache", "developer-tools"]
+authors = [{ name = "cyevenko" }]
+classifiers = [
+  "Environment :: MacOS X",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Topic :: Utilities",
+]
+# Standard library only — no runtime dependencies.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/icy-house/refaver"
+Repository = "https://github.com/icy-house/refaver"
+Issues = "https://github.com/icy-house/refaver/issues"
+
+[project.scripts]
+refaver = "refaver.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5", "mypy>=1.8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["refaver"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+# Runtime supports 3.9 (via `from __future__ import annotations`); mypy itself
+# only targets >=3.10, so we type-check against 3.10 semantics.
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

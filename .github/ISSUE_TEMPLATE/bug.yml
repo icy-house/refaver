@@ -1,0 +1,36 @@
+name: Bug report
+description: Something went wrong with refaver
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you run and what went wrong?
+      placeholder: "refaver reset http://localhost:5173 -> ..."
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "e.g. 15.5"
+    validations:
+      required: true
+  - type: input
+    id: safari
+    attributes:
+      label: Safari version
+      placeholder: "e.g. 18.5"
+  - type: dropdown
+    id: fda
+    attributes:
+      label: Full Disk Access granted to your terminal?
+      options: ["yes", "no", "not sure"]
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `refaver doctor`
+      render: shell
