@@ -26,10 +26,13 @@ jobs:
           python -m pip install --upgrade pip build
           python -m build
 
+      - name: Build standalone zipapp (.pyz)
+        run: ../packaging/build-pyz.sh "$PWD/dist"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: cli/dist/*
+          files: cli/dist/*   # sdist, wheel, and refaver-<version>.pyz
           generate_release_notes: true
 
       # TODO(homebrew): bump the formula in the tap repo with the new sha256.

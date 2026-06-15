@@ -12,5 +12,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Full Disk Access detection with guidance and a `--open-settings` shortcut.
 - Automatic database backup before every mutating command.
 - Synthetic-fixture test suite; ruff + mypy + pytest CI on macOS.
+- Self-contained zipapp (`refaver-<version>.pyz`) distribution — zero deps, runs
+  under any Python 3.9+; Homebrew installs it via `:nounzip` and runs it in
+  isolation mode, immune to broken pip / messy user-site Python.
 
 [Unreleased]: https://github.com/icy-house/refaver/commits/main

@@ -11,12 +11,22 @@ changed favicon can stay stuck for days. `refaver` fixes it in one command.
 ## Quick start
 
 ```bash
-brew install icy-house/tap/refaver    # or: pipx install refaver
+brew install icy-house/tap/refaver    # recommended
 
 refaver doctor                        # check Full Disk Access + paths
 # Quit Safari, then:
 refaver reset http://localhost:5173   # soft, non-destructive
 # Relaunch Safari — the current favicon appears.
+```
+
+### Standalone (no Homebrew, no pip)
+
+refaver ships as a self-contained zipapp with zero dependencies. Download
+`refaver-<version>.pyz` from [Releases](https://github.com/icy-house/refaver/releases)
+and run it with any Python 3.9+:
+
+```bash
+python3 refaver-0.1.0.pyz --version
 ```
 
 ## Requirements
