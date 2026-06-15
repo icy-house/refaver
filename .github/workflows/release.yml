@@ -35,8 +35,40 @@ jobs:
           files: cli/dist/*   # sdist, wheel, and refaver-<version>.pyz
           generate_release_notes: true
 
-      # TODO(homebrew): bump the formula in the tap repo with the new sha256.
-      # Requires a HOMEBREW_TAP_TOKEN secret with write access to the tap.
+  bump-tap:
+    name: Bump Homebrew tap formula
+    needs: release-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4   # this repo, for the updater script
+
+      - name: Compute version + sha256 from the released .pyz
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          curl -fsSL -o refaver.pyz \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/refaver-${VERSION}.pyz"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "SHA=$(sha256sum refaver.pyz | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Checkout the tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: icy-house/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}   # PAT with write access to the tap
+          path: tap
+
+      - name: Update the formula (version + url + sha256)
+        run: ./packaging/update-tap-formula.sh "$VERSION" "$SHA" tap/Formula/refaver.rb
+
+      - name: Commit + push the tap
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then echo "formula already up to date"; exit 0; fi
+          git add Formula/refaver.rb
+          git commit -m "refaver ${VERSION}"
+          git push
 
   # ── Phase 2 (later): build, sign, NOTARIZE the Swift .app ──────────────────
   # Enable once app/ exists and the MACOS_* secrets are configured.
