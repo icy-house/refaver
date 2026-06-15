@@ -215,7 +215,7 @@ After deleting the `page_url` mapping + orphaned `icon_info` for the target:
 - Safari showed a generated "L" letter placeholder (`has_generated_representations`)
 
 ### Exp #2 diagnosis: `rejected_resources` is the real blocker ⭐
-Inspection (`experiments/inspect.sh`) revealed the target's current favicon URLs
+Inspecting the DB revealed the target's current favicon URLs
 sit in the **`rejected_resources` table** — Safari's favicon BLOCKLIST / negative
 cache. The whole favicon lineage of the app was there, each iteration rejected:
 `favicon.png?v=1`, `favicon-v1.png`, `favicon.png`, `vite.svg`, and most recently
@@ -231,7 +231,7 @@ file fallback; it is `rejected_resources`. Deleting page_url + icon_info alone
 leaves the blocklist intact, so Safari renders a generated letter placeholder.
 
 ### The reset recipe = THREE tables (no file deletion, no hash needed)
-`experiments/reset_full.sh`:
+Delete the target's rows from:
 1. `page_url`           — page → icon mapping
 2. `rejected_resources` — negative cache / blocklist  ⬅ the missing piece
 3. `icon_info`          — orphaned metadata
@@ -347,12 +347,11 @@ GC is eventual, not immediate. (Revises the earlier "Safari leaves orphans" note
 Filename algorithm `UPPERCASE(MD5(uuid))` is only needed for `--hard`/`--gc`, not
 the default soft path.
 
-RESEARCH COMPLETE. Ready to port `experiments/*.sh` into a Python `refaver` CLI.
+RESEARCH COMPLETE. Implemented as the Python `refaver` CLI in `cli/`.
 
 ## Is quitting Safari necessary? — TESTED (2026-06-15)
 Ran the soft-reset SQL against the REAL db WHILE Safari was running
-(`experiments/test_safari_running.sh`, mirrors the tool: BEGIN EXCLUSIVE +
-busy_timeout=5000):
+(mirroring the tool: BEGIN EXCLUSIVE + busy_timeout=5000):
 - Write SUCCEEDED (`write-ok`), `PRAGMA integrity_check` = `ok` → no lock, no
   corruption. SQLite WAL + exclusive txn handles concurrent access as designed.
 - Reloading the tab (without quitting Safari) re-fetched the favicons → the change
