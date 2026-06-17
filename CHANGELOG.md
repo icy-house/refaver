@@ -9,6 +9,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Phase 1 Python CLI: `reset` (soft default + `--hard`), `gc` (`--dry-run`),
   `nuke`, and `doctor`.
+- `stale` command: scans the cache for likely-stale favicons (sites on Safari's
+  `rejected_resources` blocklist, plus local dev origins whose icon is older than
+  `--days`, default 4) and reports them most-affected first. `--fix` repairs the
+  chosen sites via the non-destructive soft reset (`--yes` to fix all unattended).
 - Full Disk Access detection with guidance and a `--open-settings` shortcut.
 - Automatic database backup before every mutating command.
 - Synthetic-fixture test suite; ruff + mypy + pytest CI on macOS.

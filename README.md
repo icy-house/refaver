@@ -45,6 +45,7 @@ python3 refaver-0.1.0.pyz --version
 |---|---|
 | `refaver reset <url>` | **Soft** reset (default): clears the site's blocklist entry and expires its icon so Safari re-fetches and self-cleans. Non-destructive. |
 | `refaver reset <url> --hard` | Deletes the site's rows **and** icon files. Use only if soft doesn't take. |
+| `refaver stale [--fix]` | Scans for likely-stale favicons (blocklisted sites + old dev-server icons) and lists them. `--fix` soft-resets the ones you pick (`--yes` fixes all). |
 | `refaver gc [--dry-run]` | Removes orphaned favicon rows/files left by other tools. |
 | `refaver nuke` | Deletes the entire favicon cache; Safari rebuilds it. |
 | `refaver doctor` | Reports FDA status, Safari state, and cache paths. |

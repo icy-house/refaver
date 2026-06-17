@@ -2,6 +2,7 @@
 
 Commands:
   reset <url>     Reset the favicon for a site (soft by default; --hard to delete).
+  stale           Detect favicons that are likely stale; --fix to repair them.
   gc              Garbage-collect orphaned favicon rows and files.
   nuke            Delete the entire favicon cache (Safari rebuilds it).
   doctor          Check Full Disk Access, Safari state, and cache paths.
@@ -120,6 +121,64 @@ def cmd_reset(args: argparse.Namespace) -> int:
     return 0
 
 
+def _select_candidates(
+    candidates: list[db.StaleCandidate], assume_yes: bool
+) -> list[db.StaleCandidate]:
+    """Ask which candidates to fix. ``all`` (or --yes) fixes every one."""
+    if assume_yes:
+        return candidates
+    try:
+        answer = input("Fix which? [all/none/1,2,...] ").strip().lower()
+    except EOFError:
+        return []
+    if answer in {"", "none", "n"}:
+        return []
+    if answer in {"all", "a", "y", "yes"}:
+        return candidates
+    chosen: list[db.StaleCandidate] = []
+    for token in answer.replace(",", " ").split():
+        if token.isdigit() and 1 <= int(token) <= len(candidates):
+            chosen.append(candidates[int(token) - 1])
+        else:
+            _eprint(f"Ignoring invalid selection: {token!r}")
+    return chosen
+
+
+def cmd_stale(args: argparse.Namespace) -> int:
+    cache = _resolve_cache(args)
+    # Fixing uses the soft (non-destructive) path, so Safari may stay running.
+    database = _guard_access(cache)
+
+    candidates = db.find_stale(database, max_age_days=args.days)
+    if not candidates:
+        print("No likely-stale favicons found.")
+        return 0
+
+    print(f"{len(candidates)} site(s) with likely-stale favicons:")
+    for n, cand in enumerate(candidates, 1):
+        print(f"  {n}. {cand.origin}  ({'; '.join(cand.reasons)})")
+
+    if not args.fix:
+        print("\nRun `refaver stale --fix` to repair (soft reset, non-destructive).")
+        return 0
+
+    to_fix = _select_candidates(candidates, args.yes)
+    if not to_fix:
+        print("Nothing selected.")
+        return 0
+
+    backup = safari.backup_db(database)
+    print(f"Backup: {backup}")
+    for cand in to_fix:
+        res = db.soft_reset(database, cand.origin)
+        print(
+            f"Fixed {cand.origin}: cleared {res.rejected_cleared} blocklist row(s), "
+            f"expired {res.icons_expired} icon(s)."
+        )
+    _apply_hint()
+    return 0
+
+
 def cmd_gc(args: argparse.Namespace) -> int:
     cache = _resolve_cache(args)
     database = safari.db_path(cache)
@@ -166,6 +225,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_reset.add_argument("-y", "--yes", action="store_true", help="Skip confirmation.")
     p_reset.set_defaults(func=cmd_reset)
+
+    p_stale = sub.add_parser("stale", help="Detect (and optionally fix) likely-stale favicons.")
+    p_stale.add_argument(
+        "--days",
+        type=int,
+        default=db.DEFAULT_STALE_DAYS,
+        help=f"Age threshold for dev origins (default: {db.DEFAULT_STALE_DAYS}).",
+    )
+    p_stale.add_argument(
+        "--fix", action="store_true", help="Soft-reset stale sites (prompts which)."
+    )
+    p_stale.add_argument("-y", "--yes", action="store_true", help="Fix all without prompting.")
+    p_stale.set_defaults(func=cmd_stale)
 
     p_gc = sub.add_parser("gc", help="Garbage-collect orphaned rows and files.")
     p_gc.add_argument("--dry-run", action="store_true", help="Report only; do not delete.")

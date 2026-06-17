@@ -49,6 +49,27 @@ def test_reset_hard_requires_confirmation(favicon_cache: Path) -> None:
     assert rc == 0
 
 
+def test_stale_reports_without_fixing(
+    favicon_cache: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rc = cli.main(["--cache-dir", str(favicon_cache), "stale"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "http://localhost:5173" in out
+    assert "--fix" in out
+    assert "Backup:" not in out  # report-only never mutates
+
+
+def test_stale_fix_all_soft_resets(
+    favicon_cache: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rc = cli.main(["--cache-dir", str(favicon_cache), "stale", "--fix", "--yes"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Backup:" in out
+    assert "Fixed http://localhost:5173" in out
+
+
 def test_gc_dry_run(favicon_cache: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rc = cli.main(["--cache-dir", str(favicon_cache), "gc", "--dry-run"])
     out = capsys.readouterr().out

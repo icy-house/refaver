@@ -60,6 +60,32 @@ def test_hard_reset_deletes_rows_and_file(favicon_cache: Path) -> None:
     assert (_favicons(favicon_cache) / filename_for_uuid(U_EXAMPLE)).exists()
 
 
+def test_find_stale_flags_blocklisted_and_dev(favicon_cache: Path) -> None:
+    # Fixture icons are timestamped ~1995, so any dev origin is well past the
+    # age threshold; localhost is also blocklisted.
+    cands = db.find_stale(_db(favicon_cache))
+    by_origin = {c.origin: c for c in cands}
+
+    local = by_origin["http://localhost:5173"]
+    assert local.blocklisted == 1
+    assert local.is_dev
+    assert any("blocklisted" in r for r in local.reasons)
+    assert any("dev origin" in r for r in local.reasons)
+    # Most-affected (blocklisted) sorts first.
+    assert cands[0].origin == "http://localhost:5173"
+    # example.com is not a dev origin and not blocklisted -> not flagged.
+    assert "https://example.com" not in by_origin
+
+
+def test_find_stale_age_threshold_excludes_fresh_dev(favicon_cache: Path) -> None:
+    # With a tiny clock just after the fixture timestamps, nothing is "old"
+    # and localhost is flagged for the blocklist reason only.
+    cands = db.find_stale(_db(favicon_cache), now=800000010, max_age_days=4)
+    by_origin = {c.origin: c for c in cands}
+    local = by_origin["http://localhost:5173"]
+    assert local.reasons == ["blocklisted (1 entry/ies)"]
+
+
 def test_gc_dry_run_reports_without_deleting(favicon_cache: Path) -> None:
     res = db.gc(_db(favicon_cache), _favicons(favicon_cache), dry_run=True)
 
