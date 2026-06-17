@@ -96,3 +96,24 @@ def backup_db(db: Path) -> Path:
         if side.exists():
             shutil.copy2(side, backup.with_name(backup.name + suffix))
     return backup
+
+
+def list_backups(db: Path) -> list[Path]:
+    """Timestamped db backups (newest first), excluding their WAL/SHM sidecars."""
+    backups = [
+        p
+        for p in db.parent.glob(f"{db.name}.bak-*")
+        if not p.name.endswith(("-wal", "-shm"))
+    ]
+    return sorted(backups, reverse=True)
+
+
+def remove_backup(backup: Path) -> list[Path]:
+    """Delete a backup and any WAL/SHM sidecars. Returns the paths removed."""
+    removed: list[Path] = []
+    sidecars = (backup.with_name(backup.name + "-wal"), backup.with_name(backup.name + "-shm"))
+    for path in (backup, *sidecars):
+        if path.exists():
+            path.unlink()
+            removed.append(path)
+    return removed

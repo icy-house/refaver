@@ -5,6 +5,7 @@ Commands:
   stale           Detect favicons that are likely stale; --fix to repair them.
   gc              Garbage-collect orphaned favicon rows and files.
   nuke            Delete the entire favicon cache (Safari rebuilds it).
+  clean           Remove the database backups left behind by past fixes.
   doctor          Check Full Disk Access, Safari state, and cache paths.
 """
 
@@ -43,6 +44,12 @@ def _guard_writable(cache: Path) -> Path:
     database = _guard_access(cache)
     safari.ensure_safari_quit()  # raises SafariRunningError
     return database
+
+
+def _announce_backup(backup: Path) -> None:
+    """Report a fresh backup and how to clean backups up later."""
+    print(f"Backup: {backup}")
+    print("  Tip: once the fix looks good, run `refaver clean` to remove backups.")
 
 
 def _apply_hint() -> None:
@@ -99,7 +106,7 @@ def cmd_reset(args: argparse.Namespace) -> int:
 
     print(f"{len(affected)} cached page(s) match {args.url!r}.")
     backup = safari.backup_db(database)
-    print(f"Backup: {backup}")
+    _announce_backup(backup)
 
     if args.hard:
         if not _confirm("Hard reset: delete rows AND favicon files?", args.yes):
@@ -168,7 +175,7 @@ def cmd_stale(args: argparse.Namespace) -> int:
         return 0
 
     backup = safari.backup_db(database)
-    print(f"Backup: {backup}")
+    _announce_backup(backup)
     for cand in to_fix:
         res = db.soft_reset(database, cand.origin)
         print(
@@ -186,7 +193,7 @@ def cmd_gc(args: argparse.Namespace) -> int:
     if not args.dry_run:
         safari.ensure_safari_quit()
         backup = safari.backup_db(database)
-        print(f"Backup: {backup}")
+        _announce_backup(backup)
     res = db.gc(database, safari.favicons_dir(cache), dry_run=args.dry_run)
     print(f"row-orphans : {len(res.row_orphans)}")
     print(f"file-orphans: {len(res.file_orphans)}")
@@ -206,6 +213,39 @@ def cmd_nuke(args: argparse.Namespace) -> int:
         return 1
     shutil.rmtree(cache)
     print("Favicon cache removed. Safari will rebuild it on next launch.")
+    return 0
+
+
+def cmd_clean(args: argparse.Namespace) -> int:
+    cache = _resolve_cache(args)
+    database = safari.db_path(cache)
+    backups = safari.list_backups(database)
+    if not backups:
+        print("No backups to clean.")
+        return 0
+
+    keep = max(args.keep, 0)
+    doomed = backups[keep:]
+    summary = f"{len(backups)} backup(s) found"
+    summary += f", keeping newest {keep}." if keep else "."
+    print(summary)
+    if not doomed:
+        print("Nothing to remove.")
+        return 0
+
+    for backup in doomed:
+        print(f"  {backup.name}")
+    if args.dry_run:
+        print("(dry run — nothing deleted)")
+        return 0
+    if not _confirm(f"Delete {len(doomed)} backup(s)?", args.yes):
+        print("Aborted.")
+        return 1
+
+    removed = 0
+    for backup in doomed:
+        removed += len(safari.remove_backup(backup))
+    print(f"Removed {removed} file(s).")
     return 0
 
 
@@ -246,6 +286,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_nuke = sub.add_parser("nuke", help="Delete the entire favicon cache.")
     p_nuke.add_argument("-y", "--yes", action="store_true", help="Skip confirmation.")
     p_nuke.set_defaults(func=cmd_nuke)
+
+    p_clean = sub.add_parser("clean", help="Remove database backups left by past fixes.")
+    p_clean.add_argument(
+        "--keep", type=int, default=0, help="Keep the newest N backups (default: 0)."
+    )
+    p_clean.add_argument("--dry-run", action="store_true", help="List only; do not delete.")
+    p_clean.add_argument("-y", "--yes", action="store_true", help="Skip confirmation.")
+    p_clean.set_defaults(func=cmd_clean)
 
     p_doctor = sub.add_parser("doctor", help="Check FDA, Safari state, and paths.")
     p_doctor.add_argument(

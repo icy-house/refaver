@@ -13,6 +13,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `rejected_resources` blocklist, plus local dev origins whose icon is older than
   `--days`, default 4) and reports them most-affected first. `--fix` repairs the
   chosen sites via the non-destructive soft reset (`--yes` to fix all unattended).
+- `clean` command: removes the `favicons.db.bak-*` backups (and their
+  WAL/SHM sidecars) left by past fixes once you're happy with the result.
+  `--keep N` retains the newest N, `--dry-run` previews. Every command that
+  creates a backup now points to it.
 - Full Disk Access detection with guidance and a `--open-settings` shortcut.
 - Automatic database backup before every mutating command.
 - Synthetic-fixture test suite; ruff + mypy + pytest CI on macOS.

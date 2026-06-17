@@ -48,9 +48,11 @@ python3 refaver-0.1.0.pyz --version
 | `refaver stale [--fix]` | Scans for likely-stale favicons (blocklisted sites + old dev-server icons) and lists them. `--fix` soft-resets the ones you pick (`--yes` fixes all). |
 | `refaver gc [--dry-run]` | Removes orphaned favicon rows/files left by other tools. |
 | `refaver nuke` | Deletes the entire favicon cache; Safari rebuilds it. |
+| `refaver clean [--keep N] [--dry-run]` | Removes the `.bak-*` database backups left by past fixes once you're happy. |
 | `refaver doctor` | Reports FDA status, Safari state, and cache paths. |
 
-Every mutating command **backs up the database first** (`favicons.db.bak-*`).
+Every mutating command **backs up the database first** (`favicons.db.bak-*`) and
+points you to `refaver clean` to tidy those up once the fix looks good.
 
 ## How it works
 

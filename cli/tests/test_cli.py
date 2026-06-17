@@ -70,6 +70,60 @@ def test_stale_fix_all_soft_resets(
     assert "Fixed http://localhost:5173" in out
 
 
+def _make_backups(cache: Path, stamps: list[str]) -> None:
+    """Fabricate db backups with explicit, distinct timestamps + a WAL sidecar."""
+    db = safari.db_path(cache)
+    for stamp in stamps:
+        (cache / f"{db.name}.bak-{stamp}").write_bytes(b"backup")
+        (cache / f"{db.name}.bak-{stamp}-wal").write_bytes(b"wal")
+
+
+def test_backup_announces_clean_command(
+    favicon_cache: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cli.main(["--cache-dir", str(favicon_cache), "reset", "http://localhost:5173"])
+    assert "clean" in capsys.readouterr().out
+
+
+def test_clean_removes_all_including_sidecars(
+    favicon_cache: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _make_backups(favicon_cache, ["20260101-000001", "20260101-000002"])
+    assert len(safari.list_backups(safari.db_path(favicon_cache))) == 2
+
+    rc = cli.main(["--cache-dir", str(favicon_cache), "clean", "--yes"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Removed 4 file(s)" in out  # 2 backups + 2 WAL sidecars
+    assert safari.list_backups(safari.db_path(favicon_cache)) == []
+
+
+def test_clean_keep_newest(favicon_cache: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _make_backups(favicon_cache, ["20260101-000001", "20260101-000002", "20260101-000003"])
+    rc = cli.main(["--cache-dir", str(favicon_cache), "clean", "--keep", "1", "--yes"])
+    assert rc == 0
+    remaining = safari.list_backups(safari.db_path(favicon_cache))
+    assert len(remaining) == 1
+    assert remaining[0].name.endswith("000003")  # newest kept
+
+
+def test_clean_dry_run_keeps_files(
+    favicon_cache: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _make_backups(favicon_cache, ["20260101-000001"])
+    rc = cli.main(["--cache-dir", str(favicon_cache), "clean", "--dry-run"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "dry run" in out
+    assert len(safari.list_backups(safari.db_path(favicon_cache))) == 1
+
+
+def test_clean_none(favicon_cache: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    rc = cli.main(["--cache-dir", str(favicon_cache), "clean"])
+    assert rc == 0
+    assert "No backups" in capsys.readouterr().out
+
+
 def test_gc_dry_run(favicon_cache: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rc = cli.main(["--cache-dir", str(favicon_cache), "gc", "--dry-run"])
     out = capsys.readouterr().out
